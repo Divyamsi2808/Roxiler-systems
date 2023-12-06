@@ -34,22 +34,32 @@ app.get('/transactions', async (req, res) => {
         page = 1,
         perPage = 10,
         searchText = "",
-        month = 1,
     } = req.query;
     const offset = (page - 1) * perPage;
+    
+    const countQuery = `
+        SELECT COUNT(*) as totalCount FROM transactions
+        WHERE title LIKE ? OR description LIKE ? OR price LIKE ?
+    `;
+    const countResult = await db.get(countQuery, [`%${searchText}%`, `%${searchText}%`, `%${searchText}%`]);
 
+    const totalRecords = countResult.totalCount;
+    const totalPages = Math.ceil(totalRecords / perPage);
 
     const query = `
-            SELECT * FROM transactions
-            WHERE strftime("%m", dateOfSale) = ? AND title LIKE ? OR description LIKE ? OR price LIKE ?
-            ORDER BY dateOfSale
-            LIMIT ? OFFSET ?
-        `;
+        SELECT * FROM transactions
+        WHERE title LIKE ? OR description LIKE ? OR price LIKE ?
+        ORDER BY dateOfSale
+        LIMIT ? OFFSET ?
+    `;
 
-    const allTransections = await db.all(query,  [month,`%${searchText}%`, `%${searchText}%`, `%${searchText}%`, perPage, offset])
+    const allTransactions = await db.all(query, [ `%${searchText}%`, `%${searchText}%`, `%${searchText}%`, perPage, offset]);
 
-
-    res.send(allTransections)
+    res.send({
+        totalPages,
+        currentPage: page,
+        data: allTransactions
+    });
 });
 
 
